@@ -167,55 +167,35 @@ static void handlebars_value_init_json_string_length(struct handlebars_context *
     json_object_put(root);
 }
 
-static ngx_int_t ngx_http_handlebars_body_filter_internal(ngx_http_request_t *r, ngx_chain_t *in) {
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
-    ngx_http_handlebars_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_handlebars_module);
-    ngx_int_t rc = NGX_ERROR;
-    ngx_str_t json;
-    if (in) {
-        json.len = 0;
-        for (ngx_chain_t *cl = in; cl; cl = cl->next) {
-            if (!ngx_buf_in_memory(cl->buf)) continue;
-            json.len += cl->buf->last - cl->buf->pos;
-        }
-        if (!json.len) return ngx_http_next_body_filter(r, in);
-        if (!(json.data = ngx_pnalloc(r->pool, json.len + 1))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); goto ret; }
-        u_char *p = json.data;
-        size_t len;
-        for (ngx_chain_t *cl = in; cl; cl = cl->next) {
-            if (!ngx_buf_in_memory(cl->buf)) continue;
-            if (!(len = cl->buf->last - cl->buf->pos)) continue;
-            p = ngx_copy(p, cl->buf->pos, len);
-        }
-        *p = '\0';
-    } else if (location->json) {
-        if (ngx_http_complex_value(r, location->json, &json) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); goto ret; }
-    } else { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!in && !json"); goto ret; }
-    ngx_str_t template;
-    if (ngx_http_complex_value(r, location->template, &template) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); goto ret; }
+static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *json, ngx_str_t *template) {
+    jmp_buf jmp;
     struct handlebars_ast_node *ast;
     struct handlebars_compiler *compiler;
+    struct handlebars_context *ctx;
     struct handlebars_module *module;
     struct handlebars_parser *parser;
     struct handlebars_program *program;
-    struct handlebars_string *buffer = NULL;
+    struct handlebars_string *buffer;
     struct handlebars_string *tmpl;
     struct handlebars_value *input;
-    struct handlebars_value *partials = NULL;
-    TALLOC_CTX *root = talloc_new(NULL);
-    struct handlebars_context *ctx = handlebars_context_ctor_ex(root);
-    jmp_buf jmp;
+    struct handlebars_value *partials;
+    TALLOC_CTX *root;
+    volatile ngx_int_t rc = NGX_ERROR;
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
+    ngx_http_handlebars_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_handlebars_module);
+    root = talloc_new(NULL);
+    ctx = handlebars_context_ctor_ex(root);
     if (handlebars_setjmp_ex(ctx, &jmp)) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, handlebars_error_message(ctx)); goto clean; }
     compiler = handlebars_compiler_ctor(ctx);
     handlebars_compiler_set_flags(compiler, location->compiler_flags);
     parser = handlebars_parser_ctor(ctx);
-    tmpl = handlebars_string_ctor(HBSCTX(parser), (const char *)template.data, template.len);
+    tmpl = handlebars_string_ctor(HBSCTX(parser), (const char *)template->data, template->len);
     if (location->compiler_flags & handlebars_compiler_flag_compat) tmpl = handlebars_preprocess_delimiters(ctx, tmpl, NULL, NULL);
     ast = handlebars_parse_ex(parser, tmpl, location->compiler_flags);
     program = handlebars_compiler_compile_ex(compiler, ast);
     module = handlebars_program_serialize(ctx, program);
     input = handlebars_value_ctor(ctx);
-    handlebars_value_init_json_string_length(ctx, input, (const char *)json.data, json.len);
+    handlebars_value_init_json_string_length(ctx, input, (const char *)json->data, json->len);
     if (location->convert_input) handlebars_value_convert(input);
     if (location->enable_partial_loader) partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, (const char *)location->partial_path.data, location->partial_path.len), handlebars_string_ctor(ctx, (const char *)location->partial_extension.data, location->partial_extension.len), handlebars_value_ctor(ctx));
     ngx_uint_t run_count = location->run_count;
@@ -224,8 +204,7 @@ static ngx_int_t ngx_http_handlebars_body_filter_internal(ngx_http_request_t *r,
         handlebars_vm_set_flags(vm, location->compiler_flags);
         if (location->enable_partial_loader) handlebars_vm_set_partials(vm, partials);
         if (buffer) handlebars_talloc_free(buffer);
-        buffer = handlebars_vm_execute(vm, module, input);
-        buffer = talloc_steal(ctx, buffer);
+        buffer = talloc_steal(ctx, buffer = handlebars_vm_execute(vm, module, input));
         handlebars_vm_dtor(vm);
     } while(--run_count > 0);
     handlebars_value_dtor(input);
@@ -250,8 +229,35 @@ static ngx_int_t ngx_http_handlebars_body_filter_internal(ngx_http_request_t *r,
 clean:
     handlebars_context_dtor(ctx);
     talloc_free(root);
-ret:
     return rc;
+}
+
+static ngx_int_t ngx_http_handlebars_body_filter_internal(ngx_http_request_t *r, ngx_chain_t *in) {
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
+    ngx_http_handlebars_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_handlebars_module);
+    ngx_str_t json;
+    if (in) {
+        json.len = 0;
+        for (ngx_chain_t *cl = in; cl; cl = cl->next) {
+            if (!ngx_buf_in_memory(cl->buf)) continue;
+            json.len += cl->buf->last - cl->buf->pos;
+        }
+        if (!json.len) return ngx_http_next_body_filter(r, in);
+        if (!(json.data = ngx_pnalloc(r->pool, json.len + 1))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pnalloc"); return NGX_ERROR; }
+        u_char *p = json.data;
+        size_t len;
+        for (ngx_chain_t *cl = in; cl; cl = cl->next) {
+            if (!ngx_buf_in_memory(cl->buf)) continue;
+            if (!(len = cl->buf->last - cl->buf->pos)) continue;
+            p = ngx_copy(p, cl->buf->pos, len);
+        }
+        *p = '\0';
+    } else if (location->json) {
+        if (ngx_http_complex_value(r, location->json, &json) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
+    } else { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!in && !json"); return NGX_ERROR; }
+    ngx_str_t template;
+    if (ngx_http_complex_value(r, location->template, &template) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_ERROR; }
+    return ngx_http_handlebars_process(r, &json, &template);
 }
 
 #if (NGX_THREADS)

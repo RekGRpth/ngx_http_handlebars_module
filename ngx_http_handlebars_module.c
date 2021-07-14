@@ -137,12 +137,10 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     struct handlebars_value *input;
     struct handlebars_value *partials;
     struct handlebars_vm *vm;
-    TALLOC_CTX *root;
     volatile ngx_int_t rc = NGX_ERROR;
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     ngx_http_handlebars_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_handlebars_module);
-    root = talloc_new(NULL);
-    ctx = handlebars_context_ctor_ex(root);
+    ctx = handlebars_context_ctor();
     if (handlebars_setjmp_ex(ctx, &jmp)) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, handlebars_error_message(ctx)); goto clean; }
     compiler = handlebars_compiler_ctor(ctx);
     handlebars_compiler_set_flags(compiler, location->compiler_flags);
@@ -182,7 +180,6 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     rc = ngx_http_next_body_filter(r, chain);
 clean:
     handlebars_context_dtor(ctx);
-    talloc_free(root);
     return rc;
 }
 

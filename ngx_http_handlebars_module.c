@@ -20,12 +20,9 @@ typedef struct {
 } ngx_http_handlebars_context_t;
 
 typedef struct {
-    ngx_flag_t enable_partial_loader;
     ngx_http_complex_value_t *content;
     ngx_http_complex_value_t *json;
     ngx_http_complex_value_t *template;
-    ngx_str_t partial_extension;
-    ngx_str_t partial_path;
     ngx_uint_t compiler_flags;
 } ngx_http_handlebars_location_t;
 
@@ -61,29 +58,11 @@ static ngx_command_t ngx_http_handlebars_commands[] = {
     .conf = NGX_HTTP_LOC_CONF_OFFSET,
     .offset = offsetof(ngx_http_handlebars_location_t, content),
     .post = NULL },
-  { .name = ngx_string("handlebars_enable_partial_loader"),
-    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    .set = ngx_conf_set_flag_slot,
-    .conf = NGX_HTTP_LOC_CONF_OFFSET,
-    .offset = offsetof(ngx_http_handlebars_location_t, enable_partial_loader),
-    .post = NULL },
   { .name = ngx_string("handlebars_json"),
     .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     .set = ngx_http_set_complex_value_slot,
     .conf = NGX_HTTP_LOC_CONF_OFFSET,
     .offset = offsetof(ngx_http_handlebars_location_t, json),
-    .post = NULL },
-  { .name = ngx_string("handlebars_partial_extension"),
-    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    .set = ngx_conf_set_str_slot,
-    .conf = NGX_HTTP_LOC_CONF_OFFSET,
-    .offset = offsetof(ngx_http_handlebars_location_t, partial_extension),
-    .post = NULL },
-  { .name = ngx_string("handlebars_partial_path"),
-    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    .set = ngx_conf_set_str_slot,
-    .conf = NGX_HTTP_LOC_CONF_OFFSET,
-    .offset = offsetof(ngx_http_handlebars_location_t, partial_path),
     .post = NULL },
   { .name = ngx_string("handlebars_template"),
     .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -98,7 +77,6 @@ static void *ngx_http_handlebars_create_loc_conf(ngx_conf_t *cf) {
     ngx_http_handlebars_location_t *location = ngx_pcalloc(cf->pool, sizeof(*location));
     if (!location) return NULL;
     location->compiler_flags = NGX_CONF_UNSET_UINT;
-    location->enable_partial_loader = NGX_CONF_UNSET;
     return location;
 }
 
@@ -108,10 +86,7 @@ static char *ngx_http_handlebars_merge_loc_conf(ngx_conf_t *cf, void *parent, vo
     if (!conf->content) conf->content = prev->content;
     if (!conf->json) conf->json = prev->json;
     if (!conf->template) conf->template = prev->template;
-    ngx_conf_merge_str_value(conf->partial_extension, prev->partial_extension, ".hbs");
-    ngx_conf_merge_str_value(conf->partial_path, prev->partial_path, ".");
     ngx_conf_merge_uint_value(conf->compiler_flags, prev->compiler_flags, 0);
-    ngx_conf_merge_value(conf->enable_partial_loader, prev->enable_partial_loader, 1);
     return NGX_CONF_OK;
 }
 
@@ -180,14 +155,14 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     input = handlebars_value_ctor(ctx);
     handlebars_value_init_json_string_length(ctx, input, (const char *)json->data, json->len);
 //    if (location->convert_input) handlebars_value_convert(input);
-    partials = location->enable_partial_loader ? handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, (const char *)location->partial_path.data, location->partial_path.len), handlebars_string_ctor(ctx, (const char *)location->partial_extension.data, location->partial_extension.len), handlebars_value_ctor(ctx)) : NULL;
+    partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, ".", sizeof(".") - 1), handlebars_string_ctor(ctx, "", sizeof("") - 1), handlebars_value_ctor(ctx));
     vm = handlebars_vm_ctor(ctx);
     handlebars_vm_set_flags(vm, location->compiler_flags);
-    if (partials) handlebars_vm_set_partials(vm, partials);
+    handlebars_vm_set_partials(vm, partials);
     buffer = talloc_steal(ctx, handlebars_vm_execute(vm, module, input));
     handlebars_vm_dtor(vm);
     handlebars_value_dtor(input);
-    if (partials) handlebars_value_dtor(partials);
+    handlebars_value_dtor(partials);
     if (!buffer) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!buffer"); goto clean; }
     ngx_str_t output = {hbs_str_len(buffer), (u_char *)hbs_str_val(buffer)};
     ngx_chain_t *chain = ngx_alloc_chain_link(r->pool);

@@ -175,10 +175,10 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     struct handlebars_module *module;
     struct handlebars_parser *parser;
     struct handlebars_program *program;
-    struct handlebars_string *buffer;
+    struct handlebars_string *buffer = NULL;
     struct handlebars_string *tmpl;
     struct handlebars_value *input;
-    struct handlebars_value *partials;
+    struct handlebars_value *partials = NULL;
     TALLOC_CTX *root;
     volatile ngx_int_t rc = NGX_ERROR;
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
@@ -202,13 +202,13 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     do {
         struct handlebars_vm *vm = handlebars_vm_ctor(ctx);
         handlebars_vm_set_flags(vm, location->compiler_flags);
-        if (location->enable_partial_loader) handlebars_vm_set_partials(vm, partials);
+        if (partials) handlebars_vm_set_partials(vm, partials);
         if (buffer) handlebars_talloc_free(buffer);
-        buffer = talloc_steal(ctx, buffer = handlebars_vm_execute(vm, module, input));
+        buffer = talloc_steal(ctx, handlebars_vm_execute(vm, module, input));
         handlebars_vm_dtor(vm);
     } while(--run_count > 0);
     handlebars_value_dtor(input);
-    if (location->enable_partial_loader) handlebars_value_dtor(partials);
+    if (partials) handlebars_value_dtor(partials);
     if (!buffer) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!buffer"); goto clean; }
     ngx_str_t output = {hbs_str_len(buffer), (u_char *)hbs_str_val(buffer)};
     ngx_chain_t *chain = ngx_alloc_chain_link(r->pool);

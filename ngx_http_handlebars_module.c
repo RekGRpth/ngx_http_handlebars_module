@@ -20,7 +20,6 @@ typedef struct {
 } ngx_http_handlebars_context_t;
 
 typedef struct {
-    ngx_flag_t convert_input;
     ngx_flag_t enable_partial_loader;
     ngx_http_complex_value_t *content;
     ngx_http_complex_value_t *json;
@@ -62,12 +61,6 @@ static ngx_command_t ngx_http_handlebars_commands[] = {
     .conf = NGX_HTTP_LOC_CONF_OFFSET,
     .offset = offsetof(ngx_http_handlebars_location_t, content),
     .post = NULL },
-  { .name = ngx_string("handlebars_convert_input"),
-    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    .set = ngx_conf_set_flag_slot,
-    .conf = NGX_HTTP_LOC_CONF_OFFSET,
-    .offset = offsetof(ngx_http_handlebars_location_t, convert_input),
-    .post = NULL },
   { .name = ngx_string("handlebars_enable_partial_loader"),
     .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     .set = ngx_conf_set_flag_slot,
@@ -105,7 +98,6 @@ static void *ngx_http_handlebars_create_loc_conf(ngx_conf_t *cf) {
     ngx_http_handlebars_location_t *location = ngx_pcalloc(cf->pool, sizeof(*location));
     if (!location) return NULL;
     location->compiler_flags = NGX_CONF_UNSET_UINT;
-    location->convert_input = NGX_CONF_UNSET;
     location->enable_partial_loader = NGX_CONF_UNSET;
     return location;
 }
@@ -119,7 +111,6 @@ static char *ngx_http_handlebars_merge_loc_conf(ngx_conf_t *cf, void *parent, vo
     ngx_conf_merge_str_value(conf->partial_extension, prev->partial_extension, ".hbs");
     ngx_conf_merge_str_value(conf->partial_path, prev->partial_path, ".");
     ngx_conf_merge_uint_value(conf->compiler_flags, prev->compiler_flags, 0);
-    ngx_conf_merge_value(conf->convert_input, prev->convert_input, 1);
     ngx_conf_merge_value(conf->enable_partial_loader, prev->enable_partial_loader, 1);
     return NGX_CONF_OK;
 }
@@ -188,7 +179,7 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     module = handlebars_program_serialize(ctx, program);
     input = handlebars_value_ctor(ctx);
     handlebars_value_init_json_string_length(ctx, input, (const char *)json->data, json->len);
-    if (location->convert_input) handlebars_value_convert(input);
+//    if (location->convert_input) handlebars_value_convert(input);
     partials = location->enable_partial_loader ? handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, (const char *)location->partial_path.data, location->partial_path.len), handlebars_string_ctor(ctx, (const char *)location->partial_extension.data, location->partial_extension.len), handlebars_value_ctor(ctx)) : NULL;
     vm = handlebars_vm_ctor(ctx);
     handlebars_vm_set_flags(vm, location->compiler_flags);

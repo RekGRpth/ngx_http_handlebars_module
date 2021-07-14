@@ -223,7 +223,7 @@ static ngx_int_t ngx_http_handlebars_body_filter_internal(ngx_http_request_t *r,
     } while(--run_count > 0);
     handlebars_value_dtor(input);
     if (location->enable_partial_loader) handlebars_value_dtor(partials);
-    if (!buffer) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!output.len"); goto clean; }
+    if (!buffer) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!buffer"); goto clean; }
     ngx_str_t output = {hbs_str_len(buffer), (u_char *)hbs_str_val(buffer)};
     ngx_chain_t *chain = ngx_alloc_chain_link(r->pool);
     if (!chain) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_alloc_chain_link"); goto clean; }

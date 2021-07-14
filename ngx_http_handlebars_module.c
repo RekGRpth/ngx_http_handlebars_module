@@ -208,7 +208,7 @@ static ngx_int_t ngx_http_handlebars_body_filter_internal(ngx_http_request_t *r,
     struct handlebars_value *input = handlebars_value_ctor(ctx);
     handlebars_value_init_json_string_length(ctx, input, (const char *)json.data, json.len);
     if (location->convert_input) handlebars_value_convert(input);
-    struct handlebars_value *partials;
+    struct handlebars_value *partials = NULL;
     if (location->enable_partial_loader) partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, (const char *)location->partial_path.data, location->partial_path.len), handlebars_string_ctor(ctx, (const char *)location->partial_extension.data, location->partial_extension.len), handlebars_value_ctor(ctx));
     struct handlebars_string *buffer = NULL;
     ngx_uint_t run_count = location->run_count;

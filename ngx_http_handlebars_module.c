@@ -120,7 +120,6 @@ static void handlebars_value_init_json_string_length(struct handlebars_context *
     if (json_tokener_get_parse_end(tok) < length) handlebars_throw(ctx, HANDLEBARS_ERROR, "json_tokener_get_parse_end < %li", length);
     json_tokener_free(tok);
     handlebars_value_init_json_object(ctx, value, root);
-    json_object_put(root);
 }
 
 static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *json, ngx_str_t *template) {

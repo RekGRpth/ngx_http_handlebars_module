@@ -193,24 +193,31 @@ static ngx_int_t ngx_http_handlebars_body_filter_internal(ngx_http_request_t *r,
     } else { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!in && !json"); goto ret; }
     ngx_str_t template;
     if (ngx_http_complex_value(r, location->template, &template) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); goto ret; }
+    struct handlebars_ast_node *ast;
+    struct handlebars_compiler *compiler;
+    struct handlebars_module *module;
+    struct handlebars_parser *parser;
+    struct handlebars_program *program;
+    struct handlebars_string *buffer = NULL;
+    struct handlebars_string *tmpl;
+    struct handlebars_value *input;
+    struct handlebars_value *partials = NULL;
     TALLOC_CTX *root = talloc_new(NULL);
     struct handlebars_context *ctx = handlebars_context_ctor_ex(root);
     jmp_buf jmp;
     if (handlebars_setjmp_ex(ctx, &jmp)) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, handlebars_error_message(ctx)); goto clean; }
-    struct handlebars_compiler *compiler = handlebars_compiler_ctor(ctx);
+    compiler = handlebars_compiler_ctor(ctx);
     handlebars_compiler_set_flags(compiler, location->compiler_flags);
-    struct handlebars_parser *parser = handlebars_parser_ctor(ctx);
-    struct handlebars_string *tmpl = handlebars_string_ctor(HBSCTX(parser), (const char *)template.data, template.len);
+    parser = handlebars_parser_ctor(ctx);
+    tmpl = handlebars_string_ctor(HBSCTX(parser), (const char *)template.data, template.len);
     if (location->compiler_flags & handlebars_compiler_flag_compat) tmpl = handlebars_preprocess_delimiters(ctx, tmpl, NULL, NULL);
-    struct handlebars_ast_node *ast = handlebars_parse_ex(parser, tmpl, location->compiler_flags);
-    struct handlebars_program *program = handlebars_compiler_compile_ex(compiler, ast);
-    struct handlebars_module *module = handlebars_program_serialize(ctx, program);
-    struct handlebars_value *input = handlebars_value_ctor(ctx);
+    ast = handlebars_parse_ex(parser, tmpl, location->compiler_flags);
+    program = handlebars_compiler_compile_ex(compiler, ast);
+    module = handlebars_program_serialize(ctx, program);
+    input = handlebars_value_ctor(ctx);
     handlebars_value_init_json_string_length(ctx, input, (const char *)json.data, json.len);
     if (location->convert_input) handlebars_value_convert(input);
-    struct handlebars_value *partials = NULL;
     if (location->enable_partial_loader) partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, (const char *)location->partial_path.data, location->partial_path.len), handlebars_string_ctor(ctx, (const char *)location->partial_extension.data, location->partial_extension.len), handlebars_value_ctor(ctx));
-    struct handlebars_string *buffer = NULL;
     ngx_uint_t run_count = location->run_count;
     do {
         struct handlebars_vm *vm = handlebars_vm_ctor(ctx);

@@ -28,7 +28,6 @@ typedef struct {
     ngx_str_t partial_extension;
     ngx_str_t partial_path;
     ngx_uint_t compiler_flags;
-    ngx_uint_t run_count;
 } ngx_http_handlebars_location_t;
 
 ngx_module_t ngx_http_handlebars_module;
@@ -93,12 +92,6 @@ static ngx_command_t ngx_http_handlebars_commands[] = {
     .conf = NGX_HTTP_LOC_CONF_OFFSET,
     .offset = offsetof(ngx_http_handlebars_location_t, partial_path),
     .post = NULL },
-  { .name = ngx_string("handlebars_run_count"),
-    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    .set = ngx_conf_set_num_slot,
-    .conf = NGX_HTTP_LOC_CONF_OFFSET,
-    .offset = offsetof(ngx_http_handlebars_location_t, run_count),
-    .post = NULL },
   { .name = ngx_string("handlebars_template"),
     .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     .set = ngx_http_set_complex_value_slot_my,
@@ -114,7 +107,6 @@ static void *ngx_http_handlebars_create_loc_conf(ngx_conf_t *cf) {
     location->compiler_flags = NGX_CONF_UNSET_UINT;
     location->convert_input = NGX_CONF_UNSET;
     location->enable_partial_loader = NGX_CONF_UNSET;
-    location->run_count = NGX_CONF_UNSET_UINT;
     return location;
 }
 
@@ -127,7 +119,6 @@ static char *ngx_http_handlebars_merge_loc_conf(ngx_conf_t *cf, void *parent, vo
     ngx_conf_merge_str_value(conf->partial_extension, prev->partial_extension, ".hbs");
     ngx_conf_merge_str_value(conf->partial_path, prev->partial_path, ".");
     ngx_conf_merge_uint_value(conf->compiler_flags, prev->compiler_flags, 0);
-    ngx_conf_merge_uint_value(conf->run_count, prev->run_count, 1);
     ngx_conf_merge_value(conf->convert_input, prev->convert_input, 1);
     ngx_conf_merge_value(conf->enable_partial_loader, prev->enable_partial_loader, 1);
     return NGX_CONF_OK;
@@ -175,10 +166,11 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     struct handlebars_module *module;
     struct handlebars_parser *parser;
     struct handlebars_program *program;
-    struct handlebars_string *buffer = NULL;
+    struct handlebars_string *buffer;
     struct handlebars_string *tmpl;
     struct handlebars_value *input;
-    struct handlebars_value *partials = NULL;
+    struct handlebars_value *partials;
+    struct handlebars_vm *vm;
     TALLOC_CTX *root;
     volatile ngx_int_t rc = NGX_ERROR;
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
@@ -197,16 +189,12 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     input = handlebars_value_ctor(ctx);
     handlebars_value_init_json_string_length(ctx, input, (const char *)json->data, json->len);
     if (location->convert_input) handlebars_value_convert(input);
-    if (location->enable_partial_loader) partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, (const char *)location->partial_path.data, location->partial_path.len), handlebars_string_ctor(ctx, (const char *)location->partial_extension.data, location->partial_extension.len), handlebars_value_ctor(ctx));
-    ngx_uint_t run_count = location->run_count;
-    do {
-        struct handlebars_vm *vm = handlebars_vm_ctor(ctx);
-        handlebars_vm_set_flags(vm, location->compiler_flags);
-        if (partials) handlebars_vm_set_partials(vm, partials);
-        if (buffer) handlebars_talloc_free(buffer);
-        buffer = talloc_steal(ctx, handlebars_vm_execute(vm, module, input));
-        handlebars_vm_dtor(vm);
-    } while(--run_count > 0);
+    partials = location->enable_partial_loader ? handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, (const char *)location->partial_path.data, location->partial_path.len), handlebars_string_ctor(ctx, (const char *)location->partial_extension.data, location->partial_extension.len), handlebars_value_ctor(ctx)) : NULL;
+    vm = handlebars_vm_ctor(ctx);
+    handlebars_vm_set_flags(vm, location->compiler_flags);
+    if (partials) handlebars_vm_set_partials(vm, partials);
+    buffer = talloc_steal(ctx, handlebars_vm_execute(vm, module, input));
+    handlebars_vm_dtor(vm);
     handlebars_value_dtor(input);
     if (partials) handlebars_value_dtor(partials);
     if (!buffer) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!buffer"); goto clean; }

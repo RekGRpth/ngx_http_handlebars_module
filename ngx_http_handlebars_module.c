@@ -8,7 +8,6 @@
 #include <handlebars/handlebars_string.h>
 #include <handlebars/handlebars_value.h>
 #include <handlebars/handlebars_vm.h>
-#include <json-c/json.h>
 #include <nginx.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
@@ -110,18 +109,6 @@ static ngx_int_t ngx_http_handlebars_header_filter(ngx_http_request_t *r) {
     return ngx_http_next_header_filter(r);
 }
 
-static void handlebars_value_init_json_string_length(struct handlebars_context *ctx, struct handlebars_value *value, const char *json, size_t length) {
-    enum json_tokener_error error;
-    struct json_object *root;
-    struct json_tokener *tok;
-    if (!(tok = json_tokener_new())) handlebars_throw(ctx, HANDLEBARS_ERROR, "!json_tokener_new");
-    do root = json_tokener_parse_ex(tok, json, length); while ((error = json_tokener_get_error(tok)) == json_tokener_continue);
-    if (error != json_tokener_success) handlebars_throw(ctx, HANDLEBARS_ERROR, "!json_tokener_parse_ex and %s", json_tokener_error_desc(error));
-    if (json_tokener_get_parse_end(tok) < length) handlebars_throw(ctx, HANDLEBARS_ERROR, "json_tokener_get_parse_end < %li", length);
-    json_tokener_free(tok);
-    handlebars_value_init_json_object(ctx, value, root);
-}
-
 static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *json, ngx_str_t *template) {
     jmp_buf jmp;
     struct handlebars_ast_node *ast;
@@ -149,7 +136,7 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     program = handlebars_compiler_compile_ex(compiler, ast);
     module = handlebars_program_serialize(ctx, program);
     input = handlebars_value_ctor(ctx);
-    handlebars_value_init_json_string_length(ctx, input, (const char *)json->data, json->len);
+    handlebars_value_init_json_string(ctx, input, (const char *)json->data);
 //    if (location->convert_input) handlebars_value_convert(input);
     partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, ".", sizeof(".") - 1), handlebars_string_ctor(ctx, "", sizeof("") - 1), handlebars_value_ctor(ctx));
     vm = handlebars_vm_ctor(ctx);

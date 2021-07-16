@@ -130,13 +130,14 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     compiler = handlebars_compiler_ctor(ctx);
     handlebars_compiler_set_flags(compiler, location->compiler_flags);
     parser = handlebars_parser_ctor(ctx);
-    tmpl = handlebars_string_ctor(HBSCTX(parser), (const char *)template->data, template->len);
+    tmpl = handlebars_string_ctor(ctx, (const char *)template->data, template->len);
     if (location->compiler_flags & handlebars_compiler_flag_compat) tmpl = handlebars_preprocess_delimiters(ctx, tmpl, NULL, NULL);
     ast = handlebars_parse_ex(parser, tmpl, location->compiler_flags);
     program = handlebars_compiler_compile_ex(compiler, ast);
     module = handlebars_program_serialize(ctx, program);
     input = handlebars_value_ctor(ctx);
-    handlebars_value_init_json_string(ctx, input, (const char *)json->data);
+    buffer = handlebars_string_ctor(ctx, (const char *)json->data, json->len);
+    handlebars_value_init_json_string(ctx, input, hbs_str_val(buffer));
 //    if (location->convert_input) handlebars_value_convert(input);
     partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, ".", sizeof(".") - 1), handlebars_string_ctor(ctx, "", sizeof("") - 1), handlebars_value_ctor(ctx));
     vm = handlebars_vm_ctor(ctx);

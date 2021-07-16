@@ -29,6 +29,37 @@ ngx_module_t ngx_http_handlebars_module;
 static ngx_http_output_header_filter_pt ngx_http_next_header_filter;
 static ngx_http_output_body_filter_pt ngx_http_next_body_filter;
 
+static char *ngx_http_handlebars_flags_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+    ngx_http_handlebars_location_t *location = conf;
+    ngx_str_t *args = cf->args->elts;
+    static const ngx_conf_enum_t e[] = {
+        { ngx_string("all"), handlebars_compiler_flag_all },
+        { ngx_string("alternate_decorators"), handlebars_compiler_flag_alternate_decorators },
+        { ngx_string("assume_objects"), handlebars_compiler_flag_assume_objects },
+        { ngx_string("compat"), handlebars_compiler_flag_compat },
+        { ngx_string("explicit_partial_context"), handlebars_compiler_flag_explicit_partial_context },
+        { ngx_string("ignore_standalone"), handlebars_compiler_flag_ignore_standalone },
+        { ngx_string("known_helpers_only"), handlebars_compiler_flag_known_helpers_only },
+        { ngx_string("mustache_style_lambdas"), handlebars_compiler_flag_mustache_style_lambdas },
+        { ngx_string("no_escape"), handlebars_compiler_flag_no_escape },
+        { ngx_string("none"), handlebars_compiler_flag_none },
+        { ngx_string("prevent_indent"), handlebars_compiler_flag_prevent_indent },
+        { ngx_string("strict"), handlebars_compiler_flag_strict },
+        { ngx_string("string_params"), handlebars_compiler_flag_string_params },
+        { ngx_string("track_ids"), handlebars_compiler_flag_track_ids },
+        { ngx_string("use_data"), handlebars_compiler_flag_use_data },
+        { ngx_string("use_depths"), handlebars_compiler_flag_use_depths },
+        { ngx_null_string, 0 }
+    };
+    ngx_uint_t compiler_flags = handlebars_compiler_flag_compat;
+    ngx_uint_t j;
+    for (j = 0; e[j].name.len; j++) if (e[j].name.len == args[1].len && !ngx_strncmp(e[j].name.data, args[1].data, args[1].len)) { compiler_flags = e[j].value; break; }
+    if (!e[j].name.len) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: value \"%V\" must be \"all\", \"alternate_decorators\", \"assume_objects\", \"compat\", \"explicit_partial_context\", \"ignore_standalone\", \"known_helpers_only\", \"mustache_style_lambdas\", \"no_escape\", \"none\", \"prevent_indent\", \"strict\", \"string_params\", \"track_ids\", \"use_data\" or \"use_depths\"", &cmd->name, &args[1]); return NGX_CONF_ERROR; }
+    if (compiler_flags) location->compiler_flags |= compiler_flags;
+    else location->compiler_flags = handlebars_compiler_flag_none;
+    return NGX_CONF_OK;
+}
+
 static ngx_int_t ngx_http_handlebars_handler(ngx_http_request_t *r) {
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
     r->headers_out.status = NGX_HTTP_OK;
@@ -44,9 +75,9 @@ static char *ngx_http_set_complex_value_slot_my(ngx_conf_t *cf, ngx_command_t *c
 }
 
 static ngx_command_t ngx_http_handlebars_commands[] = {
-  { .name = ngx_string("handlebars_compiler_flags"),
-    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    .set = ngx_conf_set_num_slot,
+  { .name = ngx_string("handlebars_flags"),
+    .type = NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+    .set = ngx_http_handlebars_flags_conf,
     .conf = NGX_HTTP_LOC_CONF_OFFSET,
     .offset = offsetof(ngx_http_handlebars_location_t, compiler_flags),
     .post = NULL },
@@ -84,7 +115,7 @@ static char *ngx_http_handlebars_merge_loc_conf(ngx_conf_t *cf, void *parent, vo
     if (!conf->content) conf->content = prev->content;
     if (!conf->json) conf->json = prev->json;
     if (!conf->template) conf->template = prev->template;
-    ngx_conf_merge_uint_value(conf->compiler_flags, prev->compiler_flags, 0);
+    ngx_conf_merge_uint_value(conf->compiler_flags, prev->compiler_flags, handlebars_compiler_flag_compat);
     return NGX_CONF_OK;
 }
 

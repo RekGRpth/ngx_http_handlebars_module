@@ -31,6 +31,7 @@ static ngx_http_output_body_filter_pt ngx_http_next_body_filter;
 
 static char *ngx_http_handlebars_flags_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
     ngx_http_handlebars_location_t *location = conf;
+    if (location->compiler_flags != NGX_CONF_UNSET_UINT) return "duplicate";
     ngx_str_t *args = cf->args->elts;
     static const ngx_conf_enum_t e[] = {
         { ngx_string("all"), handlebars_compiler_flag_all },

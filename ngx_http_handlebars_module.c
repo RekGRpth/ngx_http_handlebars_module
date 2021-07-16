@@ -143,7 +143,7 @@ static ngx_int_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t *j
     vm = handlebars_vm_ctor(ctx);
     handlebars_vm_set_flags(vm, location->compiler_flags);
     handlebars_vm_set_partials(vm, partials);
-    buffer = handlebars_vm_execute(vm, module, input);
+    buffer = talloc_steal(ctx, handlebars_vm_execute(vm, module, input));
     handlebars_vm_dtor(vm);
     handlebars_value_dtor(input);
     handlebars_value_dtor(partials);

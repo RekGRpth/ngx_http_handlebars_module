@@ -63,19 +63,19 @@ static char *ngx_http_handlebars_flags_conf(ngx_conf_t *cf, ngx_command_t *cmd, 
 
 static ngx_buf_t *ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t json) {
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
-    ngx_buf_t *b = NULL;
     ngx_http_clear_accept_ranges(r);
     ngx_http_clear_content_length(r);
     ngx_http_weak_etag(r);
     ngx_http_handlebars_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_handlebars_module);
-    if (location->content && ngx_http_complex_value(r, location->content, &r->headers_out.content_type) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); goto error; }
+    if (location->content && ngx_http_complex_value(r, location->content, &r->headers_out.content_type) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NULL; }
     if (!r->headers_out.content_type.data) {
         ngx_http_core_loc_conf_t *core = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
         r->headers_out.content_type = core->default_type;
     }
     r->headers_out.content_type_len = r->headers_out.content_type.len;
     ngx_str_t template;
-    if (ngx_http_complex_value(r, location->template, &template) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); goto error; }
+    if (ngx_http_complex_value(r, location->template, &template) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NULL; }
+    ngx_buf_t *b = NULL;
     jmp_buf jmp;
     struct handlebars_context *ctx = handlebars_context_ctor();
     if (handlebars_setjmp_ex(ctx, &jmp)) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, handlebars_error_message(ctx)); goto free; }
@@ -109,7 +109,6 @@ static ngx_buf_t *ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t j
     r->headers_out.content_length_n = output.len;
 free:
     handlebars_context_dtor(ctx);
-error:
     return b;
 }
 

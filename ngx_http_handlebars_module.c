@@ -61,9 +61,9 @@ static char *ngx_http_handlebars_flags_conf(ngx_conf_t *cf, ngx_command_t *cmd, 
     return NGX_CONF_OK;
 }
 
-static ngx_chain_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t json) {
+static ngx_buf_t *ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t json) {
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
-    ngx_chain_t cl = {NULL, NULL};
+    ngx_buf_t *b = NULL;
     ngx_http_clear_accept_ranges(r);
     ngx_http_clear_content_length(r);
     ngx_http_weak_etag(r);
@@ -101,8 +101,7 @@ static ngx_chain_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t 
     handlebars_value_dtor(partials);
     if (!buffer) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!buffer"); goto free; }
     ngx_str_t output = {hbs_str_len(buffer), (u_char *)hbs_str_val(buffer)};
-    ngx_buf_t *b = cl.buf = ngx_create_temp_buf(r->pool, output.len);
-    if (!b) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_create_temp_buf"); goto free; }
+    if (!(b = ngx_create_temp_buf(r->pool, output.len))) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_create_temp_buf"); goto free; }
     b->last_buf = 1;
     b->last = ngx_copy(b->last, output.data, output.len);
     b->memory = 1;
@@ -111,7 +110,7 @@ static ngx_chain_t ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t 
 free:
     handlebars_context_dtor(ctx);
 error:
-    return cl;
+    return b;
 }
 
 static ngx_int_t ngx_http_handlebars_handler(ngx_http_request_t *r) {
@@ -121,7 +120,7 @@ static ngx_int_t ngx_http_handlebars_handler(ngx_http_request_t *r) {
     ngx_http_handlebars_location_t *location = ngx_http_get_module_loc_conf(r, ngx_http_handlebars_module);
     ngx_str_t json;
     if (ngx_http_complex_value(r, location->json, &json) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NGX_HTTP_INTERNAL_SERVER_ERROR; }
-    ngx_chain_t cl = ngx_http_handlebars_process(r, json);
+    ngx_chain_t cl = {.buf = ngx_http_handlebars_process(r, json), .next = NULL};
     if (!cl.buf) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!cl.buf"); return NGX_HTTP_INTERNAL_SERVER_ERROR; }
     r->headers_out.status = NGX_HTTP_OK;
     rc = ngx_http_send_header(r);
@@ -213,7 +212,7 @@ static ngx_int_t ngx_http_handlebars_body_filter(ngx_http_request_t *r, ngx_chai
         if (!(len = cl->buf->last - cl->buf->pos)) continue;
         p = ngx_copy(p, cl->buf->pos, len);
     }
-    ngx_chain_t cl = ngx_http_handlebars_process(r, json);
+    ngx_chain_t cl = {.buf = ngx_http_handlebars_process(r, json), .next = NULL};
     if (!cl.buf) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!cl.buf"); goto error; }
     ngx_int_t rc = ngx_http_next_header_filter(r);
     if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) return NGX_ERROR;

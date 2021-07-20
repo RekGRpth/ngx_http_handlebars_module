@@ -91,7 +91,7 @@ static ngx_buf_t *ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t j
     struct handlebars_string *buffer = handlebars_string_ctor(ctx, (const char *)json.data, json.len);
     handlebars_value_init_json_string(ctx, input, hbs_str_val(buffer));
     handlebars_value_convert(input);
-    struct handlebars_value *partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, ".", sizeof(".") - 1), handlebars_string_ctor(ctx, "", sizeof("") - 1), handlebars_value_ctor(ctx));
+    struct handlebars_value *partials = handlebars_value_partial_loader_init(ctx, handlebars_string_ctor(ctx, ".", sizeof(".") - 1), handlebars_string_ctor(ctx, ".hbs", sizeof(".hbs") - 1), handlebars_value_ctor(ctx));
     struct handlebars_vm *vm = handlebars_vm_ctor(ctx);
     handlebars_vm_set_flags(vm, location->compiler_flags);
     handlebars_vm_set_partials(vm, partials);

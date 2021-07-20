@@ -52,7 +52,7 @@ static char *ngx_http_handlebars_flags_conf(ngx_conf_t *cf, ngx_command_t *cmd, 
         { ngx_string("use_depths"), handlebars_compiler_flag_use_depths },
         { ngx_null_string, 0 }
     };
-    ngx_uint_t compiler_flags = handlebars_compiler_flag_compat;
+    ngx_uint_t compiler_flags = handlebars_compiler_flag_none;
     ngx_uint_t j;
     for (j = 0; e[j].name.len; j++) if (e[j].name.len == args[1].len && !ngx_strncmp(e[j].name.data, args[1].data, args[1].len)) { compiler_flags = e[j].value; break; }
     if (!e[j].name.len) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: value \"%V\" must be \"all\", \"alternate_decorators\", \"assume_objects\", \"compat\", \"explicit_partial_context\", \"ignore_standalone\", \"known_helpers_only\", \"mustache_style_lambdas\", \"no_escape\", \"none\", \"prevent_indent\", \"strict\", \"string_params\", \"track_ids\", \"use_data\" or \"use_depths\"", &cmd->name, &args[1]); return NGX_CONF_ERROR; }
@@ -174,7 +174,7 @@ static char *ngx_http_handlebars_merge_loc_conf(ngx_conf_t *cf, void *parent, vo
     if (!conf->content) conf->content = prev->content;
     if (!conf->json) conf->json = prev->json;
     if (!conf->template) conf->template = prev->template;
-    ngx_conf_merge_uint_value(conf->compiler_flags, prev->compiler_flags, handlebars_compiler_flag_compat);
+    ngx_conf_merge_uint_value(conf->compiler_flags, prev->compiler_flags, handlebars_compiler_flag_alternate_decorators|handlebars_compiler_flag_compat|handlebars_compiler_flag_explicit_partial_context|handlebars_compiler_flag_ignore_standalone|handlebars_compiler_flag_known_helpers_only|handlebars_compiler_flag_mustache_style_lambdas|handlebars_compiler_flag_prevent_indent|handlebars_compiler_flag_use_data|handlebars_compiler_flag_use_depths);
     return NGX_CONF_OK;
 }
 

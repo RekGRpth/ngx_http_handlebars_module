@@ -9,15 +9,19 @@ plan tests => repeat_each() * 2 * blocks();
 
 #$Test::Nginx::LWP::LogLevel = 'debug';
 
+our $main_config = <<'_EOC_';
+    load_module /etc/nginx/modules/ngx_http_handlebars_module.so;
+_EOC_
+
+no_shuffle();
 run_tests();
 
 __DATA__
 
 === TEST 1: handlebars
---- main_config
-    load_module /etc/nginx/modules/ngx_http_handlebars_module.so;
+--- main_config eval: $::main_config
 --- config
-    location /handlebars {
+    location /test {
         default_type application/json;
         handlebars_content text/html;
         handlebars_template 'Hello {{name}}
@@ -88,7 +92,7 @@ end
 }';
     }
 --- request
-    GET /handlebars
+    GET /test
 --- response_body chop
 Hello Chris
 You have just won 10000 dollars!
@@ -141,10 +145,9 @@ end
 &gt;
 --- SKIP
 === TEST 2: handlebars
---- main_config
-    load_module /etc/nginx/modules/ngx_http_handlebars_module.so;
+--- main_config eval: $::main_config
 --- config
-    location /handlebars {
+    location /test {
         default_type application/json;
 #        handlebars_flags all;
         handlebars_content text/html;
@@ -175,7 +178,7 @@ end
 }';
     }
 --- request
-    GET /handlebars
+    GET /test
 --- response_body eval
 '<h1>Colors</h1>
 
@@ -185,10 +188,9 @@ end
 
 '
 === TEST 3: handlebars
---- main_config
-    load_module /etc/nginx/modules/ngx_http_handlebars_module.so;
+--- main_config eval: $::main_config
 --- config
-    location /handlebars {
+    location /test {
         default_type application/json;
         handlebars_content text/html;
         handlebars_template '* {{name}}
@@ -214,7 +216,7 @@ end
 }';
     }
 --- request
-    GET /handlebars
+    GET /test
 --- response_body chop
 * Chris
 * 18
@@ -229,10 +231,9 @@ end
 * skills: <ul><li>JavaScript</li><li>PHP</li><li>Java</li></ul>
 * age: 18
 === TEST 4: handlebars
---- main_config
-    load_module /etc/nginx/modules/ngx_http_handlebars_module.so;
+--- main_config eval: $::main_config
 --- config
-    location /handlebars {
+    location /test {
         default_type application/json;
         handlebars_content text/html;
         handlebars_template 'This are extensions!!
@@ -308,7 +309,7 @@ No Fred#2? Hey Fred#2...
 }';
     }
 --- request
-    GET /handlebars
+    GET /test
 --- response_body eval
 'This are extensions!!
 
@@ -412,10 +413,9 @@ Amed: 24/24/24
 '
 --- SKIP
 === TEST 5: handlebars
---- main_config
-    load_module /etc/nginx/modules/ngx_http_handlebars_module.so;
+--- main_config eval: $::main_config
 --- config
-    location /handlebars {
+    location /test {
         default_type application/json;
         handlebars_content text/html;
         handlebars_template ' =====================================
@@ -465,7 +465,7 @@ Ensure must3 didn\'t change specials
 }';
     }
 --- request
-    GET /handlebars
+    GET /test
 --- response_body eval
 ' =====================================
 from json

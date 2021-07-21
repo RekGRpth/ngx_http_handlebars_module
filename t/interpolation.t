@@ -23,7 +23,7 @@ __DATA__
 --- config
     location /test {
         default_type application/json;
-        handlebars_template "Hello from {handlebarse}!\n";
+        handlebars_template "Hello from {Mustache}!\n";
         handlebars_content text/html;
         return 200 '{
       }';
@@ -31,7 +31,7 @@ __DATA__
 --- request
     GET /test
 --- response_body eval
-"Hello from {handlebarse}!\n"
+"Hello from {Mustache}!\n"
 === TEST 2: Basic Interpolation
 --- main_config eval: $::main_config
 --- config
@@ -62,7 +62,7 @@ __DATA__
     GET /test
 --- response_body eval
 "These characters should be HTML escaped: &amp; &quot; &lt; &gt;\n"
-=== TEST 4: Triple handlebarse
+=== TEST 4: Triple Mustache
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -107,7 +107,7 @@ __DATA__
     GET /test
 --- response_body eval
 "\"85 miles an hour!\""
-=== TEST 7: Triple handlebarse Integer Interpolation
+=== TEST 7: Triple Mustache Integer Interpolation
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -152,7 +152,7 @@ __DATA__
     GET /test
 --- response_body eval
 "\"1.21 jiggawatts!\""
-=== TEST 10: Triple handlebarse Decimal Interpolation
+=== TEST 10: Triple Mustache Decimal Interpolation
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -197,7 +197,7 @@ __DATA__
     GET /test
 --- response_body eval
 "I () be seen!"
-=== TEST 13: Triple handlebarse Null Interpolation
+=== TEST 13: Triple Mustache Null Interpolation
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -241,7 +241,7 @@ __DATA__
     GET /test
 --- response_body eval
 "I () be seen!"
-=== TEST 16: Triple handlebarse Context Miss Interpolation
+=== TEST 16: Triple Mustache Context Miss Interpolation
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -286,7 +286,7 @@ __DATA__
     GET /test
 --- response_body eval
 "\"Joe\" == \"Joe\""
-=== TEST 19: Dotted Names - Triple handlebarse Interpolation
+=== TEST 19: Dotted Names - Triple Mustache Interpolation
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -463,7 +463,7 @@ __DATA__
     GET /test
 --- response_body eval
 "These characters should be HTML escaped: &amp; &quot; &lt; &gt;\n"
-=== TEST 28: Implicit Iterators - Triple handlebarse
+=== TEST 28: Implicit Iterators - Triple Mustache
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -517,7 +517,7 @@ __DATA__
     GET /test
 --- response_body eval
 "| --- |"
-=== TEST 32: Triple handlebarse - Surrounding Whitespace
+=== TEST 32: Triple Mustache - Surrounding Whitespace
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -562,7 +562,7 @@ __DATA__
     GET /test
 --- response_body eval
 "  ---\n"
-=== TEST 35: Triple handlebarse - Standalone
+=== TEST 35: Triple Mustache - Standalone
 --- main_config eval: $::main_config
 --- config
     location /test {
@@ -607,7 +607,7 @@ __DATA__
     GET /test
 --- response_body eval
 "|---|"
-=== TEST 38: Triple handlebarse With Padding
+=== TEST 38: Triple Mustache With Padding
 --- main_config eval: $::main_config
 --- config
     location /test {

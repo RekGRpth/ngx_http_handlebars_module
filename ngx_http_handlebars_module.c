@@ -19,7 +19,7 @@ typedef struct {
 
 typedef struct {
     ngx_flag_t enable;
-} ngx_http_handlebars_server_t;
+} ngx_http_handlebars_main_t;
 
 typedef struct {
     ngx_http_complex_value_t *content;
@@ -132,8 +132,8 @@ static ngx_int_t ngx_http_handlebars_handler(ngx_http_request_t *r) {
 }
 
 static char *ngx_http_set_complex_value_slot_enable(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
-    ngx_http_handlebars_server_t *server = ngx_http_conf_get_module_srv_conf(cf, ngx_http_handlebars_module);
-    server->enable = 1;
+    ngx_http_handlebars_main_t *main = ngx_http_conf_get_module_main_conf(cf, ngx_http_handlebars_module);
+    main->enable = 1;
     return ngx_http_set_complex_value_slot(cf, cmd, conf);
 }
 
@@ -171,18 +171,10 @@ static ngx_command_t ngx_http_handlebars_commands[] = {
     ngx_null_command
 };
 
-static void *ngx_http_handlebars_create_srv_conf(ngx_conf_t *cf) {
-    ngx_http_handlebars_server_t *server = ngx_pcalloc(cf->pool, sizeof(*server));
-    if (!server) return NULL;
-    server->enable = NGX_CONF_UNSET;
-    return server;
-}
-
-static char *ngx_http_handlebars_merge_srv_conf(ngx_conf_t *cf, void *parent, void *child) {
-    ngx_http_handlebars_server_t *prev = parent;
-    ngx_http_handlebars_server_t *conf = child;
-    ngx_conf_merge_value(conf->enable, prev->enable, 0);
-    return NGX_CONF_OK;
+static void *ngx_http_handlebars_create_main_conf(ngx_conf_t *cf) {
+    ngx_http_handlebars_main_t *main = ngx_pcalloc(cf->pool, sizeof(*main));
+    if (!main) return NULL;
+    return main;
 }
 
 static void *ngx_http_handlebars_create_loc_conf(ngx_conf_t *cf) {
@@ -247,8 +239,8 @@ error:
 }
 
 static ngx_int_t ngx_http_handlebars_postconfiguration(ngx_conf_t *cf) {
-    ngx_http_handlebars_server_t *server = ngx_http_conf_get_module_srv_conf(cf, ngx_http_handlebars_module);
-    if (!server->enable) return NGX_OK;
+    ngx_http_handlebars_main_t *main = ngx_http_conf_get_module_main_conf(cf, ngx_http_handlebars_module);
+    if (!main->enable) return NGX_OK;
     ngx_http_next_header_filter = ngx_http_top_header_filter;
     ngx_http_top_header_filter = ngx_http_handlebars_header_filter;
     ngx_http_next_body_filter = ngx_http_top_body_filter;
@@ -259,10 +251,10 @@ static ngx_int_t ngx_http_handlebars_postconfiguration(ngx_conf_t *cf) {
 static ngx_http_module_t ngx_http_handlebars_ctx = {
     .preconfiguration = NULL,
     .postconfiguration = ngx_http_handlebars_postconfiguration,
-    .create_main_conf = NULL,
+    .create_main_conf = ngx_http_handlebars_create_main_conf,
     .init_main_conf = NULL,
-    .create_srv_conf = ngx_http_handlebars_create_srv_conf,
-    .merge_srv_conf = ngx_http_handlebars_merge_srv_conf,
+    .create_srv_conf = NULL,
+    .merge_srv_conf = NULL,
     .create_loc_conf = ngx_http_handlebars_create_loc_conf,
     .merge_loc_conf = ngx_http_handlebars_merge_loc_conf
 };

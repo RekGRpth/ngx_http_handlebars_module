@@ -79,6 +79,7 @@ static ngx_buf_t *ngx_http_handlebars_process(ngx_http_request_t *r, ngx_str_t j
     r->headers_out.content_type_len = r->headers_out.content_type.len;
     ngx_str_t template;
     if (ngx_http_complex_value(r, location->template, &template) != NGX_OK) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "ngx_http_complex_value != NGX_OK"); return NULL; }
+    if (!template.len) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!template.len"); return NULL; }
     ngx_buf_t *b = NULL;
     jmp_buf jmp;
     struct handlebars_context *ctx = handlebars_context_ctor();

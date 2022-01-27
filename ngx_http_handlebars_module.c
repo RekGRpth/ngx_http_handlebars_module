@@ -57,12 +57,12 @@ static char *ngx_http_handlebars_flags_conf(ngx_conf_t *cf, ngx_command_t *cmd, 
         { ngx_string("use_depths"), handlebars_compiler_flag_use_depths },
         { ngx_null_string, 0 }
     };
-    ngx_uint_t compiler_flags = handlebars_compiler_flag_none;
-    ngx_uint_t j;
-    for (j = 0; e[j].name.len; j++) if (e[j].name.len == args[1].len && !ngx_strncmp(e[j].name.data, args[1].data, args[1].len)) { compiler_flags = e[j].value; break; }
-    if (!e[j].name.len) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: value \"%V\" must be \"all\", \"alternate_decorators\", \"assume_objects\", \"compat\", \"explicit_partial_context\", \"ignore_standalone\", \"known_helpers_only\", \"mustache_style_lambdas\", \"no_escape\", \"none\", \"prevent_indent\", \"strict\", \"string_params\", \"track_ids\", \"use_data\" or \"use_depths\"", &cmd->name, &args[1]); return NGX_CONF_ERROR; }
-    if (compiler_flags) location->compiler_flags |= compiler_flags;
-    else location->compiler_flags = handlebars_compiler_flag_none;
+    location->compiler_flags = handlebars_compiler_flag_none;
+    for (ngx_uint_t i = 1; i < cf->args->nelts; i++) {
+        ngx_uint_t j;
+        for (j = 0; e[j].name.len; j++) if (e[j].name.len == args[i].len && !ngx_strncmp(e[j].name.data, args[i].data, args[i].len)) { location->compiler_flags |= e[j].value; break; }
+        if (!e[j].name.len) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: value \"%V\" must be \"all\", \"alternate_decorators\", \"assume_objects\", \"compat\", \"explicit_partial_context\", \"ignore_standalone\", \"known_helpers_only\", \"mustache_style_lambdas\", \"no_escape\", \"none\", \"prevent_indent\", \"strict\", \"string_params\", \"track_ids\", \"use_data\" or \"use_depths\"", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+    }
     return NGX_CONF_OK;
 }
 

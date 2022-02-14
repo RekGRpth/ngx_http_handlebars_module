@@ -1,3 +1,8 @@
+#include <nginx.h>
+#include <ngx_config.h>
+#include <ngx_core.h>
+#include <ngx_http.h>
+
 #include <handlebars/handlebars_compiler.h>
 #include <handlebars/handlebars_delimiters.h>
 #include <handlebars/handlebars_json.h>
@@ -8,10 +13,6 @@
 #include <handlebars/handlebars_string.h>
 #include <handlebars/handlebars_value.h>
 #include <handlebars/handlebars_vm.h>
-#include <nginx.h>
-#include <ngx_config.h>
-#include <ngx_core.h>
-#include <ngx_http.h>
 
 typedef struct {
     ngx_chain_t *cl;
